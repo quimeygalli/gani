@@ -9,7 +9,6 @@ export default function ChatSetup({ onSetupComplete }) {
   const [messages, setMessages] = useState([WELCOME])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [ready, setReady] = useState(false)
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -33,9 +32,6 @@ export default function ChatSetup({ onSetupComplete }) {
       })
       const data = await res.json()
       setMessages(prev => [...prev, { role: 'assistant', content: data.message }])
-      if (data.is_complete) {
-        setReady(true)
-      }
     } catch {
       setMessages(prev => [
         ...prev,
@@ -65,14 +61,12 @@ export default function ChatSetup({ onSetupComplete }) {
             >
               Reset
             </button>
-            {ready && (
-              <button
-                onClick={onSetupComplete}
-                className="bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors animate-pulse"
-              >
-                Go to Dashboard →
-              </button>
-            )}
+            <button
+              onClick={onSetupComplete}
+              className="bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors"
+            >
+              Go to Dashboard →
+            </button>
           </div>
         </div>
 

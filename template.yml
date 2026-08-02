@@ -4,9 +4,9 @@ Description: Gani — AI Time-Blocking Assistant
 
 Globals:
   Function:
-    Runtime: nodejs22.x
+    Runtime: python3.12
     Architectures: [arm64]
-    MemorySize: 256
+    MemorySize: 512
     Timeout: 60
 
 Resources:
@@ -15,7 +15,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: gani-api
-      Handler: index.handler
+      Handler: handler.handler
       CodeUri: backend/
       Environment:
         Variables:
@@ -45,6 +45,7 @@ Resources:
           - GET
           - POST
           - PATCH
+          - DELETE
           - OPTIONS
         AllowHeaders:
           - Content-Type
