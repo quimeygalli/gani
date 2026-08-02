@@ -9,6 +9,7 @@ export default function ChatSetup({ onSetupComplete }) {
   const [messages, setMessages] = useState([WELCOME])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [ready, setReady] = useState(false)
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -33,7 +34,7 @@ export default function ChatSetup({ onSetupComplete }) {
       const data = await res.json()
       setMessages(prev => [...prev, { role: 'assistant', content: data.message }])
       if (data.is_complete) {
-        setTimeout(() => onSetupComplete(), 1200)
+        setReady(true)
       }
     } catch {
       setMessages(prev => [
@@ -57,12 +58,22 @@ export default function ChatSetup({ onSetupComplete }) {
             <p className="text-white font-semibold text-sm">Time-Blocking Assistant</p>
             <p className="text-gray-400 text-xs">Onboarding</p>
           </div>
-          <button
-            className="ml-auto text-xs text-gray-500 hover:text-red-400 transition-colors"
-            onClick={() => setMessages([WELCOME])}
-          >
-            Reset Setup
-          </button>
+          <div className="ml-auto flex items-center gap-3">
+            <button
+              className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+              onClick={() => { setMessages([WELCOME]); setReady(false) }}
+            >
+              Reset
+            </button>
+            {ready && (
+              <button
+                onClick={onSetupComplete}
+                className="bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors animate-pulse"
+              >
+                Go to Dashboard →
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Messages */}
