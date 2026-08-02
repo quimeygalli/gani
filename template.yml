@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Gani — AI Time-Blocking Assistant
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Architectures: [arm64]
+    MemorySize: 256
+    Timeout: 60
+
+Resources:
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: gani-api
+      Handler: index.handler
+      CodeUri: backend/
+      Environment:
+        Variables:
+          SESSIONS_TABLE: agent-sessions
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/nube-agent-execution-role"
+      Events:
+        ApiProxy:
+          Type: HttpApi
+          Properties:
+            Path: /api/{proxy+}
+            Method: ANY
+            ApiId: !Ref HttpApi
+        Frontend:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: GET
+            ApiId: !Ref HttpApi
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - PATCH
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+
+Outputs:
+  ApiUrl:
+    Description: API base URL
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
