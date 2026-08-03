@@ -67,11 +67,10 @@ function todayPrefix() {
 // ── Add block modal ───────────────────────────────────────────────────────────
 
 function AddBlockModal({ onAdd, onClose }) {
-  const prefix = todayPrefix()
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('')
-  const [startTime, setStartTime] = useState(`${prefix}T09:00`)
-  const [endTime, setEndTime] = useState(`${prefix}T10:00`)
+  const [startHour, setStartHour] = useState('09:00')
+  const [endHour, setEndHour] = useState('10:00')
   const [error, setError] = useState('')
 
   function handleAdd() {
@@ -79,16 +78,19 @@ function AddBlockModal({ onAdd, onClose }) {
       setError('Title and category are required.')
       return
     }
-    if (new Date(startTime) >= new Date(endTime)) {
+    const prefix = todayPrefix()
+    const start_time = `${prefix}T${startHour}`
+    const end_time = `${prefix}T${endHour}`
+    if (start_time >= end_time) {
       setError('End time must be after start time.')
       return
     }
-    onAdd({ title: title.trim(), category: category.trim(), start_time: startTime, end_time: endTime })
+    onAdd({ title: title.trim(), category: category.trim(), start_time, end_time })
   }
 
   return (
     <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="modal-panel w-full max-w-md rounded-2xl border border-white/10 p-6 space-y-4 text-white"
+      <div className="modal-panel w-full max-w-lg rounded-2xl border border-white/10 p-6 space-y-4 text-white"
            style={{ background: 'rgba(15,15,30,0.97)' }}>
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-base">Add block</h2>
@@ -111,12 +113,12 @@ function AddBlockModal({ onAdd, onClose }) {
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="text-xs mb-1 block text-gray-300">Start</label>
-              <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)}
+              <input type="time" value={startHour} onChange={e => setStartHour(e.target.value)}
                 className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500" />
             </div>
             <div className="flex-1">
               <label className="text-xs mb-1 block text-gray-300">End</label>
-              <input type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)}
+              <input type="time" value={endHour} onChange={e => setEndHour(e.target.value)}
                 className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500" />
             </div>
           </div>
@@ -141,17 +143,23 @@ function AddBlockModal({ onAdd, onClose }) {
 function EditModal({ block, onSave, onDelete, onClose }) {
   const [title, setTitle] = useState(block.title)
   const [category, setCategory] = useState(block.category)
-  const toLocal = iso => iso ? iso.slice(0, 16) : ''
-  const [startTime, setStartTime] = useState(toLocal(block.start_time))
-  const [endTime, setEndTime] = useState(toLocal(block.end_time))
+  const toHour = iso => iso ? iso.slice(11, 16) : ''
+  const [startHour, setStartHour] = useState(toHour(block.start_time))
+  const [endHour, setEndHour] = useState(toHour(block.end_time))
 
   function handleSave() {
-    onSave(block.id, { title, category, start_time: startTime, end_time: endTime })
+    const datePrefix = block.start_time.slice(0, 10)
+    onSave(block.id, {
+      title,
+      category,
+      start_time: `${datePrefix}T${startHour}`,
+      end_time: `${datePrefix}T${endHour}`,
+    })
   }
 
   return (
     <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="modal-panel w-full max-w-md rounded-2xl border border-white/10 p-6 space-y-4 text-white"
+      <div className="modal-panel w-full max-w-lg rounded-2xl border border-white/10 p-6 space-y-4 text-white"
            style={{ background: 'rgba(15,15,30,0.97)' }}>
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-base">Edit block</h2>
@@ -171,12 +179,12 @@ function EditModal({ block, onSave, onDelete, onClose }) {
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="text-xs mb-1 block text-gray-300">Start</label>
-              <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)}
+              <input type="time" value={startHour} onChange={e => setStartHour(e.target.value)}
                 className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500" />
             </div>
             <div className="flex-1">
               <label className="text-xs mb-1 block text-gray-300">End</label>
-              <input type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)}
+              <input type="time" value={endHour} onChange={e => setEndHour(e.target.value)}
                 className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500" />
             </div>
           </div>
