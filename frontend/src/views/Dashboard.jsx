@@ -53,19 +53,100 @@ function durationMinutes(start, end) {
   return Math.round((new Date(end) - new Date(start)) / 60000)
 }
 
-// Glossy gradient overlay for the colored left tab
 function glossyBg(color) {
   return `linear-gradient(160deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.07) 45%, rgba(0,0,0,0.20) 100%), ${color}`
 }
 
-// ── Edit modal ────────────────────────────────────────────────────────────────
+// ── Today's date prefix for datetime-local inputs ────────────────────────────
+function todayPrefix() {
+  const d = new Date()
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+// ── Add block modal ───────────────────────────────────────────────────────────
+
+function AddBlockModal({ onAdd, onClose }) {
+  const prefix = todayPrefix()
+  const [title, setTitle] = useState('')
+  const [category, setCategory] = useState('')
+  const [startTime, setStartTime] = useState(`${prefix}T09:00`)
+  const [endTime, setEndTime] = useState(`${prefix}T10:00`)
+  const [error, setError] = useState('')
+
+  function handleAdd() {
+    if (!title.trim() || !category.trim()) {
+      setError('Title and category are required.')
+      return
+    }
+    if (new Date(startTime) >= new Date(endTime)) {
+      setError('End time must be after start time.')
+      return
+    }
+    onAdd({ title: title.trim(), category: category.trim(), start_time: startTime, end_time: endTime })
+  }
+
+  return (
+    <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="modal-panel w-full max-w-md rounded-2xl border border-white/10 p-6 space-y-4 text-white"
+           style={{ background: 'rgba(15,15,30,0.97)' }}>
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-base">Add block</h2>
+          <button onClick={onClose} className="text-xl leading-none text-gray-300 hover:opacity-70 transition-opacity">×</button>
+        </div>
+        {error && <p className="text-xs text-red-400">{error}</p>}
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs mb-1 block text-gray-300">Title</label>
+            <input value={title} onChange={e => setTitle(e.target.value)}
+              placeholder="e.g. Deep work"
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500 placeholder-gray-500" />
+          </div>
+          <div>
+            <label className="text-xs mb-1 block text-gray-300">Category</label>
+            <input value={category} onChange={e => setCategory(e.target.value)}
+              placeholder="e.g. Work, Study, Rest…"
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500 placeholder-gray-500" />
+          </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-xs mb-1 block text-gray-300">Start</label>
+              <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)}
+                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500" />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs mb-1 block text-gray-300">End</label>
+              <input type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)}
+                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500" />
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose}
+            className="text-sm px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-gray-300">
+            Cancel
+          </button>
+          <button onClick={handleAdd}
+            className="text-sm px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 active:scale-95 text-white transition-all">
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Edit block modal ──────────────────────────────────────────────────────────
 
 function EditModal({ block, onSave, onDelete, onClose }) {
   const [title, setTitle] = useState(block.title)
   const [category, setCategory] = useState(block.category)
+  const toLocal = iso => iso ? iso.slice(0, 16) : ''
+  const [startTime, setStartTime] = useState(toLocal(block.start_time))
+  const [endTime, setEndTime] = useState(toLocal(block.end_time))
 
   function handleSave() {
-    onSave(block.id, { title, category })
+    onSave(block.id, { title, category, start_time: startTime, end_time: endTime })
   }
 
   return (
@@ -80,12 +161,24 @@ function EditModal({ block, onSave, onDelete, onClose }) {
           <div>
             <label className="text-xs mb-1 block text-gray-300">Title</label>
             <input value={title} onChange={e => setTitle(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500 transition-shadow" />
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500" />
           </div>
           <div>
             <label className="text-xs mb-1 block text-gray-300">Category</label>
             <input value={category} onChange={e => setCategory(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500 transition-shadow" />
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500" />
+          </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-xs mb-1 block text-gray-300">Start</label>
+              <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)}
+                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500" />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs mb-1 block text-gray-300">End</label>
+              <input type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)}
+                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500" />
+            </div>
           </div>
         </div>
         <div className="flex justify-between pt-2">
@@ -243,7 +336,7 @@ function DragClone({ block, categoryColors, cardBg, tx, txMuted, y, offsetY }) {
   )
 }
 
-// ── Block row (left glossy tab + card content) ────────────────────────────────
+// ── Block row ─────────────────────────────────────────────────────────────────
 
 function BlockRow({ block, index, isActive, isDragging, isDragTarget, categoryColors, cardBg, cardBorder, tx, txMuted, isLight, onToggle, onEdit, onDragStart }) {
   const color = categoryColors[block.category] ?? '#6b7280'
@@ -272,7 +365,6 @@ function BlockRow({ block, index, isActive, isDragging, isDragTarget, categoryCo
         transition: 'opacity 0.15s, transform 0.15s, box-shadow 0.2s, translate 0.2s',
       }}
     >
-      {/* Glossy colored left tab — drag handle + time */}
       <div
         className="flex flex-col items-center justify-center gap-1 w-14 flex-shrink-0 py-3 cursor-grab active:cursor-grabbing"
         style={{ background: glossyBg(color), touchAction: 'none' }}
@@ -285,7 +377,6 @@ function BlockRow({ block, index, isActive, isDragging, isDragTarget, categoryCo
         </span>
       </div>
 
-      {/* Card content */}
       <div className={`flex-1 flex items-center gap-3 px-4 py-3 min-w-0 ${cardBg}`}>
         <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
 
@@ -324,27 +415,24 @@ function BlockRow({ block, index, isActive, isDragging, isDragTarget, categoryCo
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
-export default function Dashboard({ onReset }) {
+export default function Dashboard() {
   const { apiFetch, user, logout } = useAuth()
   const [blocks, setBlocks] = useState([])
-  const [generating, setGenerating] = useState(false)
   const [editingBlock, setEditingBlock] = useState(null)
+  const [addingBlock, setAddingBlock] = useState(false)
   const [genKey, setGenKey] = useState(0)
   const [dragVisual, setDragVisual] = useState(null)
-  // dragVisual = { id, y, offsetY, overTargetId } | null
 
-  // Mutable drag state tracked via ref — avoids stale closures in pointer handlers
   const dragRef = useRef({ id: null, overTargetId: null, offsetY: 0 })
-  // blocksRef keeps blocks accessible from stable callbacks without re-subscribing
   const blocksRef = useRef(blocks)
   useEffect(() => { blocksRef.current = blocks }, [blocks])
 
   const sky = useSky()
-  const tx      = sky.isLight ? 'text-gray-950'   : 'text-gray-100'
-  const txMuted = sky.isLight ? 'text-gray-700'   : 'text-gray-300'
-  const cardBg  = sky.isLight ? 'bg-white/70'     : 'bg-white/5'
+  const tx         = sky.isLight ? 'text-gray-950'   : 'text-gray-100'
+  const txMuted    = sky.isLight ? 'text-gray-700'   : 'text-gray-300'
+  const cardBg     = sky.isLight ? 'bg-white/70'     : 'bg-white/5'
   const cardBorder = sky.isLight ? 'border-black/15' : 'border-white/10'
-  const btn     = sky.isLight ? 'bg-gray-900 hover:bg-gray-700 text-white' : 'bg-white/10 hover:bg-white/20 text-gray-200 border border-white/10'
+  const btn        = sky.isLight ? 'bg-gray-900 hover:bg-gray-700 text-white' : 'bg-white/10 hover:bg-white/20 text-gray-200 border border-white/10'
 
   const categoryColors = useCategoryColors(blocks)
 
@@ -356,7 +444,6 @@ export default function Dashboard({ onReset }) {
     } catch {}
   }, [apiFetch])
 
-  // Uses blocksRef so it stays stable even as blocks changes
   const swapBlockTimes = useCallback(async (aId, bId) => {
     const cur = blocksRef.current
     const a = cur.find(b => b.id === aId)
@@ -387,14 +474,11 @@ export default function Dashboard({ onReset }) {
     }
   }, [loadBlocks, apiFetch])
 
-  // Attach native window listeners while a drag is in progress.
-  // This ensures move/up events are captured even when the pointer leaves the drag handle,
-  // which is critical on mobile where touch moves off the element immediately.
   useEffect(() => {
     if (!dragVisual) return
 
     function handleMove(e) {
-      e.preventDefault() // prevent scroll during drag (requires passive: false)
+      e.preventDefault()
       const el = document.elementFromPoint(e.clientX, e.clientY)
       const row = el?.closest('[data-block-id]')
       if (row) dragRef.current.overTargetId = parseInt(row.dataset.blockId)
@@ -428,15 +512,19 @@ export default function Dashboard({ onReset }) {
     setDragVisual({ id: blockId, y: e.clientY, offsetY: e.clientY - rect.top, overTargetId: blockId })
   }
 
-  async function generateSchedule() {
-    setGenerating(true)
+  async function addBlock(data) {
     try {
-      const res = await apiFetch('/api/schedule/generate/', { method: 'POST' })
-      setBlocks(await res.json())
-      setGenKey(k => k + 1)
-    } catch {} finally {
-      setGenerating(false)
-    }
+      const res = await apiFetch('/api/timeblocks/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+      if (res.ok) {
+        const block = await res.json()
+        setBlocks(prev => [...prev, block].sort((a, b) => new Date(a.start_time) - new Date(b.start_time)))
+        setGenKey(k => k + 1)
+      }
+    } catch {}
+    setAddingBlock(false)
   }
 
   async function clearSchedule() {
@@ -507,28 +595,21 @@ export default function Dashboard({ onReset }) {
               {completedCount}/{blocks.length} blocks completed
             </p>
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center flex-wrap justify-end">
             <span className={`text-xs hidden sm:block ${txMuted}`}>{user?.name}</span>
-            <button onClick={logout}
-              className={`text-sm px-3 py-2 rounded-xl transition-all active:scale-95 hover:text-red-400 ${btn}`}>
-              Sign out
-            </button>
-            <button onClick={generateSchedule} disabled={generating}
-              className="bg-violet-600 hover:bg-violet-500 disabled:opacity-50 active:scale-95 text-white text-sm px-4 py-2 rounded-xl transition-all flex items-center gap-2">
-              {generating && (
-                <span className="spinner inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full" />
-              )}
-              {generating ? 'Generating…' : 'Generate Schedule'}
+            <button onClick={() => setAddingBlock(true)}
+              className="bg-violet-600 hover:bg-violet-500 active:scale-95 text-white text-sm px-4 py-2 rounded-xl transition-all">
+              + Add block
             </button>
             {blocks.length > 0 && (
               <button onClick={clearSchedule}
                 className={`text-sm px-3 py-2 rounded-xl transition-all active:scale-95 hover:text-red-400 ${btn}`}>
-                Clear
+                Clear all
               </button>
             )}
-            <button onClick={onReset}
-              className={`text-sm px-3 py-2 rounded-xl transition-all active:scale-95 ${btn}`}>
-              Reconfigure
+            <button onClick={logout}
+              className={`text-sm px-3 py-2 rounded-xl transition-all active:scale-95 hover:text-red-400 ${btn}`}>
+              Sign out
             </button>
           </div>
         </div>
@@ -550,7 +631,7 @@ export default function Dashboard({ onReset }) {
         {/* Block list */}
         {blocks.length === 0 ? (
           <div className={`text-center py-16 text-sm ${txMuted}`}>
-            No blocks yet — click <strong>Generate Schedule</strong> to build your day.
+            No blocks yet — click <strong>+ Add block</strong> to start your day.
           </div>
         ) : (
           <div className="space-y-2">
@@ -576,7 +657,6 @@ export default function Dashboard({ onReset }) {
         )}
       </div>
 
-      {/* Floating clone that follows the pointer during drag */}
       {draggingBlock && dragVisual && (
         <DragClone
           block={draggingBlock}
@@ -585,6 +665,13 @@ export default function Dashboard({ onReset }) {
           tx={tx} txMuted={txMuted}
           y={dragVisual.y}
           offsetY={dragVisual.offsetY}
+        />
+      )}
+
+      {addingBlock && (
+        <AddBlockModal
+          onAdd={addBlock}
+          onClose={() => setAddingBlock(false)}
         />
       )}
 

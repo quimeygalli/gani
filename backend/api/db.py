@@ -25,19 +25,6 @@ def _put(key, data):
         'ttl': int(time.time()) + 7 * 86400,
     })
 
-def load_history(session_id):
-    item = _get(f'chat#{session_id}')
-    return json.loads(item['messages']) if item else []
-
-def save_history(session_id, messages):
-    _put(f'chat#{session_id}', {'messages': json.dumps(messages)})
-
-def load_prefs(user_id):
-    return _get(f'prefs#{user_id}')
-
-def save_prefs(user_id, prefs):
-    _put(f'prefs#{user_id}', prefs)
-
 def load_blocks(user_id):
     item = _get(f'blocks#{user_id}')
     return json.loads(item['blocks']) if item else []
