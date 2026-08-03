@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useAuth } from '../auth'
 
 const WELCOME = {
   role: 'assistant',
@@ -6,6 +7,7 @@ const WELCOME = {
 }
 
 export default function ChatSetup({ onSetupComplete }) {
+  const { apiFetch, user, logout } = useAuth()
   const [messages, setMessages] = useState([WELCOME])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -25,9 +27,8 @@ export default function ChatSetup({ onSetupComplete }) {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/chat/configure/', {
+      const res = await apiFetch('/api/chat/configure/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMsg.content }),
       })
       const data = await res.json()
@@ -55,9 +56,10 @@ export default function ChatSetup({ onSetupComplete }) {
             <p className="text-gray-400 text-xs">Onboarding</p>
           </div>
           <div className="ml-auto flex items-center gap-3">
+            <span className="text-xs text-gray-500 hidden sm:block">{user?.name}</span>
             <button
               className="text-xs text-gray-500 hover:text-red-400 transition-colors"
-              onClick={() => { setMessages([WELCOME]); setReady(false) }}
+              onClick={() => setMessages([WELCOME])}
             >
               Reset
             </button>
@@ -65,7 +67,13 @@ export default function ChatSetup({ onSetupComplete }) {
               onClick={onSetupComplete}
               className="bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors"
             >
-              Go to Dashboard →
+              Dashboard →
+            </button>
+            <button
+              onClick={logout}
+              className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+            >
+              Sign out
             </button>
           </div>
         </div>

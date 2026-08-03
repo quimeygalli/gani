@@ -8,23 +8,33 @@ from .db import (
     load_blocks, save_blocks,
 )
 from .agent import chat_configure, generate_schedule
+from .auth import get_user
 
-DEMO_USER = 'demo'
-DEMO_SESSION = 'demo-session'
+
+def _ids(request):
+    user = get_user(request)
+    if not user:
+        return None, None
+    uid = user['sub']
+    return uid, f"{uid}-session"
 
 
 @api_view(['POST'])
 def configure_chat(request):
+    user_id, session_id = _ids(request)
+    if not user_id:
+        return Response({'error': 'unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+
     message = request.data.get('message', '').strip()
     if not message:
         return Response({'error': 'message required'}, status=status.HTTP_400_BAD_REQUEST)
 
-    history = load_history(DEMO_SESSION)
+    history = load_history(session_id)
     result = chat_configure(history, message)
-    save_history(DEMO_SESSION, result['updated_history'])
+    save_history(session_id, result['updated_history'])
 
     if result['is_complete'] and result['schedule_config']:
-        save_prefs(DEMO_USER, result['schedule_config'])
+        save_prefs(user_id, result['schedule_config'])
 
     return Response({
         'message': result['message'],
@@ -35,7 +45,11 @@ def configure_chat(request):
 
 @api_view(['POST'])
 def generate_schedule_view(request):
-    prefs = load_prefs(DEMO_USER)
+    user_id, _ = _ids(request)
+    if not user_id:
+        return Response({'error': 'unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    prefs = load_prefs(user_id)
     if not prefs:
         return Response({'error': 'Run chat setup first'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -44,32 +58,43 @@ def generate_schedule_view(request):
         {**b, 'id': i + 1, 'is_completed': False, 'order': i}
         for i, b in enumerate(blocks_data)
     ]
-    save_blocks(DEMO_USER, blocks)
+    save_blocks(user_id, blocks)
     return Response(blocks)
 
 
 @api_view(['POST'])
 def clear_schedule(request):
-    save_blocks(DEMO_USER, [])
+    user_id, _ = _ids(request)
+    if not user_id:
+        return Response({'error': 'unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    save_blocks(user_id, [])
     return Response([])
 
 
 @api_view(['GET'])
 def list_timeblocks(request):
-    return Response(load_blocks(DEMO_USER))
+    user_id, _ = _ids(request)
+    if not user_id:
+        return Response({'error': 'unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    return Response(load_blocks(user_id))
 
 
 @api_view(['PATCH', 'DELETE'])
 def timeblock_detail(request, pk):
-    blocks = load_blocks(DEMO_USER)
+    user_id, _ = _ids(request)
+    if not user_id:
+        return Response({'error': 'unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    blocks = load_blocks(user_id)
 
     if request.method == 'DELETE':
-        save_blocks(DEMO_USER, [b for b in blocks if b['id'] != pk])
+        save_blocks(user_id, [b for b in blocks if b['id'] != pk])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    # PATCH
     updated = [b if b['id'] != pk else {**b, **request.data} for b in blocks]
-    save_blocks(DEMO_USER, updated)
+    save_blocks(user_id, updated)
     block = next((b for b in updated if b['id'] == pk), None)
     if block is None:
         return Response(status=status.HTTP_404_NOT_FOUND)

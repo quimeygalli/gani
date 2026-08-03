@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useAuth } from '../auth'
 
 const SKY_STOPS = [
   { hour: 0,  rgb: [8,   14,  50]  },
@@ -324,6 +325,7 @@ function BlockRow({ block, index, isActive, isDragging, isDragTarget, categoryCo
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
 export default function Dashboard({ onReset }) {
+  const { apiFetch, user, logout } = useAuth()
   const [blocks, setBlocks] = useState([])
   const [generating, setGenerating] = useState(false)
   const [editingBlock, setEditingBlock] = useState(null)
@@ -348,11 +350,11 @@ export default function Dashboard({ onReset }) {
 
   const loadBlocks = useCallback(async () => {
     try {
-      const res = await fetch('/api/timeblocks/')
+      const res = await apiFetch('/api/timeblocks/')
       setBlocks(await res.json())
       setGenKey(k => k + 1)
     } catch {}
-  }, [])
+  }, [apiFetch])
 
   // Uses blocksRef so it stays stable even as blocks changes
   const swapBlockTimes = useCallback(async (aId, bId) => {
@@ -375,16 +377,15 @@ export default function Dashboard({ onReset }) {
 
     try {
       await Promise.all(patches.map(p =>
-        fetch(`/api/timeblocks/${p.id}/`, {
+        apiFetch(`/api/timeblocks/${p.id}/`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ start_time: p.start_time, end_time: p.end_time }),
         })
       ))
     } catch {
       loadBlocks()
     }
-  }, [loadBlocks])
+  }, [loadBlocks, apiFetch])
 
   // Attach native window listeners while a drag is in progress.
   // This ensures move/up events are captured even when the pointer leaves the drag handle,
@@ -430,7 +431,7 @@ export default function Dashboard({ onReset }) {
   async function generateSchedule() {
     setGenerating(true)
     try {
-      const res = await fetch('/api/schedule/generate/', { method: 'POST' })
+      const res = await apiFetch('/api/schedule/generate/', { method: 'POST' })
       setBlocks(await res.json())
       setGenKey(k => k + 1)
     } catch {} finally {
@@ -441,7 +442,7 @@ export default function Dashboard({ onReset }) {
   async function clearSchedule() {
     const prev = blocks
     setBlocks([])
-    try { await fetch('/api/schedule/clear/', { method: 'POST' }) }
+    try { await apiFetch('/api/schedule/clear/', { method: 'POST' }) }
     catch { setBlocks(prev) }
   }
 
@@ -449,9 +450,8 @@ export default function Dashboard({ onReset }) {
     const block = blocksRef.current.find(b => b.id === id)
     setBlocks(prev => prev.map(b => b.id === id ? { ...b, is_completed: !b.is_completed } : b))
     try {
-      await fetch(`/api/timeblocks/${id}/`, {
+      await apiFetch(`/api/timeblocks/${id}/`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_completed: !block.is_completed }),
       })
     } catch {
@@ -466,9 +466,8 @@ export default function Dashboard({ onReset }) {
     )
     setEditingBlock(null)
     try {
-      await fetch(`/api/timeblocks/${id}/`, {
+      await apiFetch(`/api/timeblocks/${id}/`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patch),
       })
     } catch {
@@ -480,7 +479,7 @@ export default function Dashboard({ onReset }) {
     setBlocks(prev => prev.filter(b => b.id !== id))
     setEditingBlock(null)
     try {
-      await fetch(`/api/timeblocks/${id}/`, { method: 'DELETE' })
+      await apiFetch(`/api/timeblocks/${id}/`, { method: 'DELETE' })
     } catch {
       loadBlocks()
     }
@@ -508,7 +507,12 @@ export default function Dashboard({ onReset }) {
               {completedCount}/{blocks.length} blocks completed
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <span className={`text-xs hidden sm:block ${txMuted}`}>{user?.name}</span>
+            <button onClick={logout}
+              className={`text-sm px-3 py-2 rounded-xl transition-all active:scale-95 hover:text-red-400 ${btn}`}>
+              Sign out
+            </button>
             <button onClick={generateSchedule} disabled={generating}
               className="bg-violet-600 hover:bg-violet-500 disabled:opacity-50 active:scale-95 text-white text-sm px-4 py-2 rounded-xl transition-all flex items-center gap-2">
               {generating && (
