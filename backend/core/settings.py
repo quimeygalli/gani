@@ -34,5 +34,5 @@ REST_FRAMEWORK = {
 }
 
 DYNAMODB_TABLE = os.environ.get('SESSIONS_TABLE', 'agent-sessions')
-AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+AWS_REGION = os.environ.get('AWS_DEFAULT_REGION', os.environ.get('AWS_REGION', 'us-east-1'))
 BEDROCK_MODEL = 'us.anthropic.claude-haiku-4-5-20251001-v1:0'
