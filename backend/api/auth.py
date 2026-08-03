@@ -1,7 +1,7 @@
 import jwt
 import time
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
+import json
+import urllib.request
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -14,7 +14,7 @@ def make_jwt(user_id, email, name):
         'email': email,
         'name': name,
         'iat': int(time.time()),
-        'exp': int(time.time()) + 30 * 86400,  # 30 days
+        'exp': int(time.time()) + 30 * 86400,
     }
     return jwt.encode(payload, settings.JWT_SECRET, algorithm='HS256')
 
@@ -33,6 +33,19 @@ def get_user(request):
     return verify_jwt(auth[7:])
 
 
+def _verify_google_token(token, client_id):
+    url = f'https://oauth2.googleapis.com/tokeninfo?id_token={token}'
+    with urllib.request.urlopen(url, timeout=5) as resp:
+        info = json.loads(resp.read())
+    if info.get('aud') != client_id:
+        raise ValueError('Token audience mismatch')
+    if info.get('iss') not in ('accounts.google.com', 'https://accounts.google.com'):
+        raise ValueError('Invalid token issuer')
+    if int(info.get('exp', 0)) < int(time.time()):
+        raise ValueError('Token expired')
+    return info
+
+
 @api_view(['POST'])
 def google_login(request):
     token = request.data.get('token', '')
@@ -40,12 +53,8 @@ def google_login(request):
         return Response({'error': 'token required'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        info = id_token.verify_oauth2_token(
-            token,
-            google_requests.Request(),
-            settings.GOOGLE_CLIENT_ID,
-        )
-    except ValueError as e:
+        info = _verify_google_token(token, settings.GOOGLE_CLIENT_ID)
+    except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
 
     user_id = info['sub']
