@@ -31,7 +31,6 @@ function useSky() {
   return sky
 }
 
-// Distinct palette — one color per index, cycling if more categories appear
 const BAR_PALETTE = [
   '#3b82f6', '#f97316', '#10b981', '#ec4899',
   '#f59e0b', '#8b5cf6', '#06b6d4', '#ef4444',
@@ -55,31 +54,12 @@ function durationMinutes(start, end) {
 
 // ── Edit modal ────────────────────────────────────────────────────────────────
 
-function toLocalTime(isoStr) {
-  const d = new Date(isoStr)
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-}
-
-function applyTimeToDate(originalIso, timeStr) {
-  const d = new Date(originalIso)
-  const [h, m] = timeStr.split(':').map(Number)
-  d.setHours(h, m, 0, 0)
-  return d.toISOString()
-}
-
 function EditModal({ block, onSave, onDelete, onClose }) {
   const [title, setTitle] = useState(block.title)
   const [category, setCategory] = useState(block.category)
-  const [startTime, setStartTime] = useState(() => toLocalTime(block.start_time))
-  const [endTime, setEndTime] = useState(() => toLocalTime(block.end_time))
 
   function handleSave() {
-    onSave(block.id, {
-      title,
-      category,
-      start_time: applyTimeToDate(block.start_time, startTime),
-      end_time: applyTimeToDate(block.end_time, endTime),
-    })
+    onSave(block.id, { title, category })
   }
 
   return (
@@ -107,26 +87,6 @@ function EditModal({ block, onSave, onDelete, onClose }) {
               onChange={e => setCategory(e.target.value)}
               className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500"
             />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs mb-1 block text-gray-300">Start</label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={e => setStartTime(e.target.value)}
-                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500"
-              />
-            </div>
-            <div>
-              <label className="text-xs mb-1 block text-gray-300">End</label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={e => setEndTime(e.target.value)}
-                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500"
-              />
-            </div>
           </div>
         </div>
 
@@ -260,39 +220,50 @@ function ActiveBlockPanel({ block, card, tx, txMuted }) {
 
 // ── Block card ────────────────────────────────────────────────────────────────
 
-function BlockCard({ block, onToggle, onEdit, isActive, categoryColors, card, tx, txMuted, isLight }) {
+function BlockCard({ block, onToggle, onEdit, isActive, isDragOver, categoryColors, card, tx, txMuted, isLight }) {
   const dur = durationMinutes(block.start_time, block.end_time)
   const color = categoryColors[block.category] ?? '#6b7280'
 
   return (
     <div
-      className={`border rounded-xl px-4 py-3 flex items-center gap-4 transition-all ${isActive ? 'ring-2 ring-violet-500' : ''} ${block.is_completed ? 'opacity-50' : ''} ${card}`}
+      className={`border rounded-xl px-4 py-3 flex items-center gap-3 transition-all select-none
+        ${isActive ? 'ring-2 ring-violet-500' : ''}
+        ${block.is_completed ? 'opacity-50' : ''}
+        ${isDragOver ? 'ring-2 ring-white/40 brightness-125' : ''}
+        ${card}`}
     >
-      {/* Color dot matching timeline */}
+      {/* Drag handle */}
+      <div className={`flex-shrink-0 text-sm leading-none cursor-grab active:cursor-grabbing ${txMuted}`}>
+        ⠿
+      </div>
+
+      {/* Color dot */}
       <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
 
+      {/* Toggle */}
       <button
-        onClick={() => onToggle(block.id)}
+        onClick={e => { e.stopPropagation(); onToggle(block.id) }}
         className={`w-5 h-5 rounded-full border-2 flex-shrink-0 transition-colors ${
           block.is_completed ? 'bg-violet-500 border-violet-500' : 'border-gray-400 hover:border-violet-400'
         }`}
       />
 
+      {/* Title + duration */}
       <div className="flex-1 min-w-0">
         <p className={`font-medium text-sm truncate ${tx} ${block.is_completed ? 'line-through' : ''}`}>
           {block.title}
         </p>
-        <p className={`text-xs mt-0.5 ${txMuted}`}>
-          {formatTime(block.start_time)} – {formatTime(block.end_time)} · {dur} min
-        </p>
+        <p className={`text-xs mt-0.5 ${txMuted}`}>{dur} min</p>
       </div>
 
+      {/* Category pill */}
       <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0 text-white" style={{ backgroundColor: color }}>
         {block.category}
       </span>
 
+      {/* Edit button */}
       <button
-        onClick={() => onEdit(block)}
+        onClick={e => { e.stopPropagation(); onEdit(block) }}
         className={`flex-shrink-0 text-xs px-2 py-1 rounded-lg transition-colors ${
           isLight
             ? 'bg-black/10 hover:bg-black/20 text-gray-700'
@@ -311,6 +282,8 @@ export default function Dashboard({ onReset }) {
   const [blocks, setBlocks] = useState([])
   const [generating, setGenerating] = useState(false)
   const [editingBlock, setEditingBlock] = useState(null)
+  const [dragId, setDragId] = useState(null)
+  const [dragOverId, setDragOverId] = useState(null)
 
   const sky = useSky()
   const tx = sky.isLight ? 'text-gray-950' : 'text-gray-100'
@@ -359,7 +332,10 @@ export default function Dashboard({ onReset }) {
   }
 
   async function saveBlock(id, patch) {
-    setBlocks(prev => prev.map(b => b.id === id ? { ...b, ...patch } : b))
+    setBlocks(prev =>
+      prev.map(b => b.id === id ? { ...b, ...patch } : b)
+         .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+    )
     setEditingBlock(null)
     try {
       await fetch(`/api/timeblocks/${id}/`, {
@@ -377,6 +353,37 @@ export default function Dashboard({ onReset }) {
     setEditingBlock(null)
     try {
       await fetch(`/api/timeblocks/${id}/`, { method: 'DELETE' })
+    } catch {
+      loadBlocks()
+    }
+  }
+
+  // Swap the time slots of two blocks when dragged onto each other
+  async function swapBlockTimes(aId, bId) {
+    const a = blocks.find(b => b.id === aId)
+    const b = blocks.find(b => b.id === bId)
+    if (!a || !b) return
+
+    const patches = [
+      { id: aId, start_time: b.start_time, end_time: b.end_time },
+      { id: bId, start_time: a.start_time, end_time: a.end_time },
+    ]
+
+    setBlocks(prev =>
+      prev.map(block => {
+        const p = patches.find(p => p.id === block.id)
+        return p ? { ...block, ...p } : block
+      }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+    )
+
+    try {
+      await Promise.all(patches.map(p =>
+        fetch(`/api/timeblocks/${p.id}/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ start_time: p.start_time, end_time: p.end_time }),
+        })
+      ))
     } catch {
       loadBlocks()
     }
@@ -418,7 +425,7 @@ export default function Dashboard({ onReset }) {
           </div>
         </div>
 
-        {/* Timeline — above the active block */}
+        {/* Timeline */}
         {blocks.length > 0 && (
           <div>
             <div className={`flex justify-between text-xs mb-2 ${txMuted}`}>
@@ -432,7 +439,7 @@ export default function Dashboard({ onReset }) {
         {/* Active block */}
         <ActiveBlockPanel block={activeBlock} card={card} tx={tx} txMuted={txMuted} />
 
-        {/* Block list */}
+        {/* Block list with time labels on the left */}
         {blocks.length === 0 ? (
           <div className={`text-center py-16 text-sm ${txMuted}`}>
             No blocks yet — click <strong>Generate Schedule</strong> to build your day.
@@ -440,16 +447,39 @@ export default function Dashboard({ onReset }) {
         ) : (
           <div className="space-y-2">
             {blocks.map(block => (
-              <BlockCard
+              <div
                 key={block.id}
-                block={block}
-                onToggle={toggleComplete}
-                onEdit={setEditingBlock}
-                isActive={activeBlock?.id === block.id}
-                categoryColors={categoryColors}
-                card={card} tx={tx} txMuted={txMuted}
-                isLight={sky.isLight}
-              />
+                className="flex items-center gap-3"
+                draggable
+                onDragStart={() => setDragId(block.id)}
+                onDragOver={e => { e.preventDefault(); setDragOverId(block.id) }}
+                onDrop={() => {
+                  if (dragId && dragId !== block.id) swapBlockTimes(dragId, block.id)
+                  setDragId(null)
+                  setDragOverId(null)
+                }}
+                onDragEnd={() => { setDragId(null); setDragOverId(null) }}
+                style={{ opacity: dragId === block.id ? 0.4 : 1 }}
+              >
+                {/* Time label */}
+                <span className={`w-14 text-right text-xs font-mono flex-shrink-0 select-none ${txMuted}`}>
+                  {formatTime(block.start_time)}
+                </span>
+
+                {/* Card */}
+                <div className="flex-1 min-w-0">
+                  <BlockCard
+                    block={block}
+                    onToggle={toggleComplete}
+                    onEdit={setEditingBlock}
+                    isActive={activeBlock?.id === block.id}
+                    isDragOver={dragOverId === block.id && dragId !== block.id}
+                    categoryColors={categoryColors}
+                    card={card} tx={tx} txMuted={txMuted}
+                    isLight={sky.isLight}
+                  />
+                </div>
+              </div>
             ))}
           </div>
         )}
